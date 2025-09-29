@@ -26,7 +26,8 @@ type wave_data_type
        ustdir_wav => NULL(),  & !< Direction of friction velocity [radians]
        charn_wav  => NULL(),  & !< Charnock parameter [dimensionless]
        tauox_wav  => NULL(),  & !< Wave to ocean momentum flux in X-direction
-       tauoy_wav  => NULL()     !< Wave to ocean momentum flux in y-direction
+       tauoy_wav  => NULL(),  & !< Wave to ocean momentum flux in y-direction
+       landmask   => NULL()
 
 real, pointer, dimension(:,:,:) :: &
        hs_glo     => NULL(),  &

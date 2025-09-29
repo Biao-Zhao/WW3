@@ -140,7 +140,7 @@ module wave_model_mod
       use w3adatmd, only: ussx, ussy, ussp, &
                           charn, hs, tauox, tauoy
       use w3wdatmd, only: UST, USTDIR
-      use w3gdatmd, only: nseal, mapsf, NK
+      use w3gdatmd, only: nseal, mapsf, NK, MAPSTA, MAPST2
       use w3odatmd, only: iaproc, naproc
       ! Subroutine arguments
       type(atmos_wave_boundary_type), intent(in) :: Atm2Waves
@@ -155,6 +155,7 @@ module wave_model_mod
       integer :: b
 
       integer :: glob_loc_x(NX,NY), glob_loc_y(NX,NY)
+      real    :: mapout(NX,NY,1)
       logical :: is_west, is_east, is_south, is_north
       !----------------------------------------------------------------------
       !Convert the ending time of this call into WW3 time format, which
@@ -217,6 +218,7 @@ module wave_model_mod
               Wav%vstkb_mpp(ix,iy,b) = USSP(isea,NK+b)
             enddo
             ! send wave variables to coupler and atmospheric model, added by Biao
+            Wav%landmask(ix,iy,1)    = MAPSTA(JY,JX)
             Wav%hs(ix,iy,1)          = HS(isea)
             Wav%ust_wav(ix,iy,1)     = UST(isea_g)
             Wav%ustdir_wav(ix,iy,1)  = USTDIR(isea_g)
@@ -242,7 +244,7 @@ module wave_model_mod
 
       call mpp_global_field(Wav%domain,Wav%glob_loc_X,glob_loc_X)
       call mpp_global_field(Wav%domain,Wav%glob_loc_Y,glob_loc_Y)
-
+      call mpp_global_field(Wav%domain,Wav%landmask,mapout)
 
       Wav%ustkb_mpp(:,:,:)  = 0.0
       Wav%vstkb_mpp(:,:,:)  = 0.0
@@ -252,7 +254,7 @@ module wave_model_mod
       Wav%charn_wav(:,:,:)  = 0.0
       Wav%tauox_wav(:,:,:)  = 0.0
       Wav%tauoy_wav(:,:,:)  = 0.0
-
+      Wav%landmask(:,:,:)   = 3.0
       do ix=1,NX
          do iy=1,NY
            Pix = glob_loc_X(ix,iy)
@@ -268,6 +270,7 @@ module wave_model_mod
                 Wav%charn_wav(Pix,Piy,1) = wav%charn_glo(ix,iy,1)
                 Wav%tauox_wav(Pix,Piy,1) = wav%tauox_glo(ix,iy,1)
                 Wav%tauoy_wav(Pix,Piy,1) = wav%tauoy_glo(ix,iy,1)
+                Wav%landmask(Pix,Piy,1)  = mapout(ix,iy,1)
            endif
          enddo
       enddo
@@ -279,14 +282,14 @@ module wave_model_mod
      is_east  = (ie == NX)
      is_south = (js == 1)
      is_north = (je == NY)
-     call fill_boundary(Wav%ustkb_mpp,  is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%vstkb_mpp,  is_west, is_east, is_south, is_north) 
-     call fill_boundary(Wav%hs,         is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%ust_wav,    is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%ustdir_wav, is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%charn_wav,  is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%tauox_wav,  is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%tauoy_wav,  is_west, is_east, is_south, is_north)
+     call fill_boundary(Wav%ustkb_mpp, Wav%landmask, is_west, is_east, is_south, is_north)
+     call fill_boundary(Wav%vstkb_mpp, Wav%landmask, is_west, is_east, is_south, is_north) 
+     call fill_boundary(Wav%hs,        Wav%landmask, is_west, is_east, is_south, is_north)
+     call fill_boundary(Wav%ust_wav,   Wav%landmask, is_west, is_east, is_south, is_north)
+     call fill_boundary(Wav%ustdir_wav,Wav%landmask, is_west, is_east, is_south, is_north)
+     call fill_boundary(Wav%charn_wav, Wav%landmask, is_west, is_east, is_south, is_north)
+     call fill_boundary(Wav%tauox_wav, Wav%landmask, is_west, is_east, is_south, is_north)
+     call fill_boundary(Wav%tauoy_wav, Wav%landmask, is_west, is_east, is_south, is_north)
 
       !----------------------------------------------------------------------
       return
@@ -328,28 +331,41 @@ module wave_model_mod
     end subroutine wave_model_end
    
     !> This subroutine copies the nearest interior row/column onto the outer lines, added by Biao 
-    subroutine fill_boundary(field, is_west, is_east, is_south, is_north)
+    subroutine fill_boundary(field, landmask, is_west, is_east, is_south, is_north)
       implicit none
       real, intent(inout) :: field(:,:,:)
+      real, intent(in)    :: landmask(:,:,:)
       logical, intent(in) :: is_west, is_east, is_south, is_north
       !   local variables
-      integer :: nxl,nyl,nzl
+      integer :: nxl,nyl,nzl,i,j
 
       nxl = size(field,1)
       nyl = size(field,2)
       nzl = size(field,3)
       
-      ! Fill the four sides from the adjacent inner column/row 
-      if (is_west) field(1, 1:nyl, 1:nzl)   = field(2, 1:nyl,1:nzl)
-      if (is_east) field(nxl, 1:nyl, 1:nzl) = field(nxl-1, 1:nyl,1:nzl)
-      if (is_south) field(1:nxl, 1, 1:nzl)   = field(1:nxl, 2, 1:nzl)
-      if (is_north) field(1:nxl, nyl, 1:nzl) = field(1:nxl, nyl-1, 1:nzl)
-       
-      ! Corners use the mean of the two adjacent inner points
-      if (is_west  .and. is_south) field(1,   1,   1:nzl) = 0.5*( field(2,   1,   1:nzl) + field(1,   2,   1:nzl) )
-      if (is_east  .and. is_south) field(nxl, 1,   1:nzl) = 0.5*( field(nxl-1,1,   1:nzl) + field(nxl, 2,   1:nzl) )
-      if (is_west  .and. is_north) field(1,   nyl, 1:nzl) = 0.5*( field(2,   nyl, 1:nzl) + field(1,   nyl-1,1:nzl) )
-      if (is_east  .and. is_north) field(nxl, nyl, 1:nzl) = 0.5*( field(nxl-1,nyl,1:nzl) + field(nxl, nyl-1,1:nzl) )
+  if (is_west .and. nxl>=2) then
+    do j=1,nyl
+      if (landmask(1,j,1)==3 .and. landmask(2,j,1)==1) field(1,j,:) = field(2,j,:)
+    end do
+  end if
+
+  if (is_east .and. nxl>=2) then
+    do j=1,nyl
+      if (landmask(nxl,j,1)==3 .and. landmask(nxl-1,j,1)==1) field(nxl,j,:) = field(nxl-1,j,:)
+    end do
+  end if
+
+  if (is_south .and. nyl>=2) then
+    do i=1,nxl
+      if (landmask(i,1,1)==3 .and. landmask(i,2,1)==1) field(i,1,:) = field(i,2,:)
+    end do
+  end if
+
+  if (is_north .and. nyl>=2) then
+    do i=1,nxl
+      if (landmask(i,nyl,1)==3 .and. landmask(i,nyl-1,1)==1) field(i,nyl,:) = field(i,nyl-1,:)
+    end do
+  end if 
 
       return
    end subroutine fill_boundary
