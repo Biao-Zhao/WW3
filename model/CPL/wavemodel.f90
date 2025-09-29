@@ -140,7 +140,8 @@ module wave_model_mod
       use w3adatmd, only: ussx, ussy, ussp, &
                           charn, hs, tauox, tauoy
       use w3wdatmd, only: UST, USTDIR
-      use w3gdatmd, only: nseal, mapsf, NK, MAPSTA, MAPST2
+      use w3gdatmd, only: nseal, mapsf, NK, MAPSTA, MAPST2, &
+                          gtype, ungtype, iclose, iclose_none
       use w3odatmd, only: iaproc, naproc
       ! Subroutine arguments
       type(atmos_wave_boundary_type), intent(in) :: Atm2Waves
@@ -277,20 +278,22 @@ module wave_model_mod
      
      ! Added by Biao,  WW3 flags the points at four boudaries as excluded, so those cells stay 0.
      ! Before coupling to MOM6/SHiELD, call fill_boundary to copy the nearest
-     ! interior row/column to these four lines, preventing zeros on domain edges.
-     is_west  = (is == 1)
-     is_east  = (ie == NX)
-     is_south = (js == 1)
-     is_north = (je == NY)
-     call fill_boundary(Wav%ustkb_mpp, Wav%landmask, is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%vstkb_mpp, Wav%landmask, is_west, is_east, is_south, is_north) 
-     call fill_boundary(Wav%hs,        Wav%landmask, is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%ust_wav,   Wav%landmask, is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%ustdir_wav,Wav%landmask, is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%charn_wav, Wav%landmask, is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%tauox_wav, Wav%landmask, is_west, is_east, is_south, is_north)
-     call fill_boundary(Wav%tauoy_wav, Wav%landmask, is_west, is_east, is_south, is_north)
-
+     ! interior row/column to these four lines, preventing zeros on domain edges. only work for 
+     ! structured and none closure grid setup
+     if (gtype.ne.ungtype .and. iclose .eq. iclose_none ) then
+        is_west  = (is == 1)
+        is_east  = (ie == NX)
+        is_south = (js == 1)
+        is_north = (je == NY)
+        call fill_boundary(Wav%ustkb_mpp, Wav%landmask, is_west, is_east, is_south, is_north)
+        call fill_boundary(Wav%vstkb_mpp, Wav%landmask, is_west, is_east, is_south, is_north) 
+        call fill_boundary(Wav%hs,        Wav%landmask, is_west, is_east, is_south, is_north)
+        call fill_boundary(Wav%ust_wav,   Wav%landmask, is_west, is_east, is_south, is_north)
+        call fill_boundary(Wav%ustdir_wav,Wav%landmask, is_west, is_east, is_south, is_north)
+        call fill_boundary(Wav%charn_wav, Wav%landmask, is_west, is_east, is_south, is_north)
+        call fill_boundary(Wav%tauox_wav, Wav%landmask, is_west, is_east, is_south, is_north)
+        call fill_boundary(Wav%tauoy_wav, Wav%landmask, is_west, is_east, is_south, is_north)
+      end if
       !----------------------------------------------------------------------
       return
     end subroutine update_wave_model
