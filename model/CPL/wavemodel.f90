@@ -340,37 +340,109 @@ module wave_model_mod
       real, intent(in)    :: landmask(:,:,:)
       logical, intent(in) :: is_west, is_east, is_south, is_north
       !   local variables
-      integer :: nxl,nyl,nzl,i,j
+      integer :: nxl, nyl, nzl, i, j, cnt
 
       nxl = size(field,1)
       nyl = size(field,2)
       nzl = size(field,3)
-      
-  if (is_west .and. nxl>=2) then
-    do j=1,nyl
-      if (landmask(1,j,1)==3 .and. landmask(2,j,1)==1) field(1,j,:) = field(2,j,:)
-    end do
-  end if
+    
+       
+     if (is_west .and. nxl>=2) then
+       do j=2,nyl-1
+         if (landmask(1,j,1)==3 .and. landmask(2,j,1)==1) field(1,j,:) = field(2,j,:)
+       end do
+     end if
 
-  if (is_east .and. nxl>=2) then
-    do j=1,nyl
-      if (landmask(nxl,j,1)==3 .and. landmask(nxl-1,j,1)==1) field(nxl,j,:) = field(nxl-1,j,:)
-    end do
-  end if
+     if (is_east .and. nxl>=2) then
+       do j=2,nyl-1
+         if (landmask(nxl,j,1)==3 .and. landmask(nxl-1,j,1)==1) field(nxl,j,:) = field(nxl-1,j,:)
+       end do
+     end if
 
-  if (is_south .and. nyl>=2) then
-    do i=1,nxl
-      if (landmask(i,1,1)==3 .and. landmask(i,2,1)==1) field(i,1,:) = field(i,2,:)
-    end do
-  end if
+     if (is_south .and. nyl>=2) then
+       do i=2,nxl-1
+         if (landmask(i,1,1)==3 .and. landmask(i,2,1)==1) field(i,1,:) = field(i,2,:)
+       end do
+     end if
 
-  if (is_north .and. nyl>=2) then
-    do i=1,nxl
-      if (landmask(i,nyl,1)==3 .and. landmask(i,nyl-1,1)==1) field(i,nyl,:) = field(i,nyl-1,:)
-    end do
-  end if 
+     if (is_north .and. nyl>=2) then
+       do i=2,nxl-1
+         if (landmask(i,nyl,1)==3 .and. landmask(i,nyl-1,1)==1) field(i,nyl,:) = field(i,nyl-1,:)
+       end do
+     end if 
+  
+    if (nxl>=2 .and. nyl>=2) then
+    !west-south corner
+    if (landmask(1,1,1)==3.0 .and. (is_west .or. is_south)) then
+      field(1,1,:) = 0.0; cnt = 0
+      if (landmask(2,1,1) .ne. 0.0)   then
+          field(1,1,:) = field(1,1,:) + field(2,1,:)
+          cnt=cnt+1
+       end if
+      if (landmask(1,2,1) .ne. 0.0)   then
+          field(1,1,:) = field(1,1,:) + field(1,2,:)
+          cnt=cnt+1
+      end if
+      if (landmask(2,2,1) .ne. 0.0)   then
+         field(1,1,:) = field(1,1,:) + field(2,2,:)
+         cnt=cnt+1; end if
+      if (cnt>0) field(1,1,:) = field(1,1,:) / real(cnt)
+    end if
+    !east-south corner
+    if (landmask(nxl,1,1)==3.0 .and. (is_east .or. is_south)) then
+      field(nxl,1,:) = 0.0
+      cnt = 0
+      if (landmask(nxl-1,1,1) .ne. 0.0) then
+         field(nxl,1,:) = field(nxl,1,:) + field(nxl-1,1,:)
+         cnt=cnt+1; end if
+      if (landmask(nxl,2,1) .ne. 0.0)   then
+         field(nxl,1,:) = field(nxl,1,:) + field(nxl,2,:)
+         cnt=cnt+1
+      end if
+      if (landmask(nxl-1,2,1) .ne. 0.0) then
+         field(nxl,1,:) = field(nxl,1,:) + field(nxl-1,2,:)
+         cnt=cnt+1
+      end if
+      if (cnt>0) field(nxl,1,:) = field(nxl,1,:) / real(cnt)
+    end if
+    !west-north corner
+    if (landmask(1,nyl,1)==3.0 .and. (is_west .or. is_north)) then
+      field(1,nyl,:) = 0.0
+      cnt = 0
+      if (landmask(2,nyl,1) .ne. 0.0)   then
+         field(1,nyl,:) = field(1,nyl,:) + field(2,nyl,:)
+         cnt=cnt+1
+      end if
+      if (landmask(1,nyl-1,1) .ne. 0.0) then
+         field(1,nyl,:) = field(1,nyl,:) + field(1,nyl-1,:)
+         cnt=cnt+1
+      end if
+      if (landmask(2,nyl-1,1) .ne. 0.0) then
+         field(1,nyl,:) = field(1,nyl,:) + field(2,nyl-1,:)
+         cnt=cnt+1
+      end if
+      if (cnt>0) field(1,nyl,:) = field(1,nyl,:) / real(cnt)
+    end if
+    !east-north corner
+    if (landmask(nxl,nyl,1)==3.0 .and. (is_east .or. is_north)) then
+      field(nxl,nyl,:) = 0.0
+      cnt = 0
+      if (landmask(nxl-1,nyl,1) .ne. 0.0)   then
+         field(nxl,nyl,:) = field(nxl,nyl,:) + field(nxl-1,nyl,:)
+         cnt=cnt+1
+      end if
+      if (landmask(nxl,nyl-1,1) .ne. 0.0)   then
+         field(nxl,nyl,:) = field(nxl,nyl,:) + field(nxl,nyl-1,:)
+         cnt=cnt+1; end if
+      if (landmask(nxl-1,nyl-1,1) .ne. 0.0) then
+         field(nxl,nyl,:) = field(nxl,nyl,:) + field(nxl-1,nyl-1,:)
+         cnt=cnt+1
+      end if
+      if (cnt>0) field(nxl,nyl,:) = field(nxl,nyl,:) / real(cnt)
+    end if
+    end if
 
-      return
+    return
    end subroutine fill_boundary
 
 end module wave_model_mod
